@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chef d'oeuvre</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <style>
+        /* Conteneur d'aperçu */
+        .preview-container {
+            margin-top: 30px;
+            text-align: center;
+        }
+
+        .square-preview-box {
+            width: 300px; 
+            height: 300px;
+            margin: 15px auto;
+            border: 3px dashed #007bff;
+            border-radius: 8px;
+            background-color: #1a1a1a; 
+            display: none; 
+            overflow: hidden;
+            position: relative;
+        }
+
+        .square-preview-box img, 
+        .square-preview-box video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain; 
+        }
+
+        .btn-import {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            border: none;
+            cursor: pointer;
+        }
+
+        /* ==========================================
+           STYLE APPORTÉ POUR LE CHEF PAINT 
+        ========================================== */
+        
+        /* Quand le mode paint n'est PAS actif, on cache l'interface de dessin */
+        body:not(.paint-mode) .paint-interface {
+            display: none;
+        }
+
+        /* Quand le mode paint EST actif, on applique vos styles au body et on cache le reste */
+        body.paint-mode {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+            background-image: url("/home/premiereg2/Téléchargements/Chef_Oeuvre/img/fond_vip.png");
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+        }
+
+        body.paint-mode header,
+        body.paint-mode .hero,
+        body.paint-mode footer {
+            display: none !important;
+        }
+
+        .paint-interface {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .toolbar {
+            width: 100%;
+            background: white;
+            padding: 15px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .toolbar button,
+        .toolbar input {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .toolbar button {
+            background: #2d89ef;
+            color: white;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+
+        .toolbar button:hover {
+            background: #1b5fad;
+        }
+
+        .toolbar .btn-back {
+            background: #dc3545;
+        }
+        .toolbar .btn-back:hover {
+            background: #bd2130;
+        }
+
+        .toolbar label {
+            font-weight: bold;
+            color: #333;
+        }
+
+        canvas {
+            margin-top: 20px;
+            background: white;
+            border: 2px solid #333;
+            border-radius: 10px;
+            cursor: crosshair;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            touch-action: none;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Chef d'oeuvre</h1>
+        <nav>
+            <a href="#ggggg">Accueil</a>
+            <a href="#">Galerie</a>
+            <a href="#">Outils</a>
+        </nav>
+    </header>
+
+    <section class="hero">
+        <h2>Personnalisez le panneau</h2>
+        <p>Importer vos images et vidéos pour projeter sur le panneau LED.</p>
+
+        <div class="actions">
+            <input type="file" id="file-picker" accept="image/*,video/*" style="display: none;">
+
+            <div class="card">
+                <h3>Importer une image</h3>
+                <button class="btn-import btn-file-trigger">Importer</button>
+            </div>
+            <div class="card">
+                <h3>Importer une vidéo</h3>
+                <button class="btn-import btn-file-trigger">Importer</button>
+            </div>
+            <div class="card">
+                <h3>Créer un Chef Paint</h3>
+                <button class="btn-import" id="btn-trigger-paint">Créer</button> 
+            </div>
+        </div>
+
+        <div class="preview-container">
+            <h3>Aperçu (Format Panneau 1:1) :</h3>
+            <div id="preview-box" class="square-preview-box">
+                <img id="image-preview" src="#" alt="Aperçu image" style="display: none;">
+                <video id="video-preview" controls style="display: none;"></video>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <p>&copy; 2026 Pro B. Tous droits réservés.</p>
+    </footer>
+
+
+    <div class="paint-interface">
+        <div class="toolbar">
+            <button class="btn-back" id="paint-back">← Quitter</button>
+            <label>Couleur :</label>
+            <input type="color" id="paint-color" value="#2d89ef">
+            
+            <label>Épaisseur :</label>
+            <input type="range" id="paint-size" min="1" max="40" value="8">
+            
+            <button id="paint-clear">Effacer tout</button>
+        </div>
+        <canvas id="paint-canvas" width="500" height="500"></canvas>
+    </div>
+
+
+    <script>
+        // Éléments d'origine
+        const filePicker = document.getElementById('file-picker');
+        const previewBox = document.getElementById('preview-box');
+        const previewImage = document.getElementById('image-preview');
+        const previewVideo = document.getElementById('video-preview');
+        
+        // Ciblage des boutons spécifiques
+        const fileButtons = document.querySelectorAll('.btn-file-trigger');
+        const btnTriggerPaint = document.getElementById('btn-trigger-paint');
+        const btnPaintBack = document.getElementById('paint-back');
+
+        // Gestion du Canvas Chef Paint
+        const canvas = document.getElementById('paint-canvas');
+        const ctx = canvas.getContext('2d');
+        let isDrawing = false;
+
+        // Associer uniquement les deux premiers boutons au sélecteur de fichiers externe
+        fileButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                filePicker.click();
+            });
+        });
+
+        // Activer le mode Chef Paint au clic sur le 3ème bouton
+        btnTriggerPaint.addEventListener('click', () => {
+            document.body.classList.add('paint-mode');
+        });
+
+        // Revenir en arrière / Quitter le mode Paint
+        btnPaintBack.addEventListener('click', () => {
+            document.body.classList.remove('paint-mode');
+        });
+
+        // Traitement de l'import d'image/vidéo d'origine
+        filePicker.addEventListener('change', function(event) {
+            const file = event.target.files[0];
+
+            if (file) {
+                const reader = new FileReader();
+
+                previewImage.style.display = 'none';
+                previewVideo.style.display = 'none';
+                previewVideo.pause(); 
+
+                reader.onload = function(e) {
+                    if (file.type.startsWith('video/')) {
+                        previewVideo.src = e.target.result;
+                        previewVideo.style.display = 'block';
+                    } 
+                    else if (file.type.startsWith('image/')) {
+                        previewImage.src = e.target.result;
+                        previewImage.style.display = 'block';
+                    }
+
+                    previewBox.style.display = 'block';
+                    console.log("Fichier prêt à être envoyé :", file.name, "(" + file.type + ")");
+                };
+
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // ==========================================
+        // LOGIQUE DE DESSIN DU CANVAS (CHEF PAINT)
+        // ==========================================
+        function startDrawing(e) {
+            isDrawing = true;
+            draw(e);
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+            ctx.beginPath(); // Réinitialise le tracé pour ne pas lier les lignes entre elles
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+
+            // Configuration du pinceau à la volée
+            ctx.lineWidth = document.getElementById('paint-size').value;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.strokeStyle = document.getElementById('paint-color').value;
+
+            // Récupérer la position exacte de la souris sur le canvas
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX || e.touches[0].clientX) - rect.left;
+            const y = (e.clientY || e.touches[0].clientY) - rect.top;
+
+            ctx.lineTo(x, y);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+        }
+
+        // Événements Souris
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseleave', stopDrawing);
+
+        // Événements Tactiles (smartphones/tablettes)
+        canvas.addEventListener('touchstart', startDrawing);
+        canvas.addEventListener('touchend', stopDrawing);
+        canvas.addEventListener('touchmove', draw);
+
+        // Bouton pour vider l'écran de dessin
+        document.getElementById('paint-clear').addEventListener('click', () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        });
+    </script>
+</body>
+</html>
